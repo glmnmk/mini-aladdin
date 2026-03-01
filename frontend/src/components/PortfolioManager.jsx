@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, X, Check } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export default function PortfolioManager({ currentTickers, currentWeights, onLoad }) {
     const [portfolios, setPortfolios] = useState([]);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { BrainCircuit, TrendingUp, AlertCircle, Play } from 'lucide-react';
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export default function BlackLitterman({ tickers, currentWeights, onApplyWeights }) {
     const [loadingViews, setLoadingViews] = useState(false);

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Target, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export default function WealthProjection({ tickers, weights }) {
     const [projectionData, setProjectionData] = useState([]);
