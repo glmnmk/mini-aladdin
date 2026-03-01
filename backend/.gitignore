@@ -1,0 +1,22 @@
+# Virtual environments
+.venv
+venv/
+env/
+
+# Python caching
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data (do not push old test databases or sensitive JSON files)
+maas.db
+users.json
+portfolios.json
+*.sqlite3
+
+# Credentials MUST STAY LOCAL
+.env
+.pgpass
+
+# OS generated
+.DS_Store

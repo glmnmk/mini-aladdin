@@ -1,0 +1,18 @@
+[project]
+name = "mini-aladdin-backend"
+version = "0.1.0"
+description = "Monte Carlo Simulation Backend"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "yfinance>=0.2.0",
+    "pydantic>=2.0.0",
+    "python-multipart"
+]
+
+[tool.setuptools]
+packages = ["app"]
