@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 from .market_data import fetch_historical_data, fetch_fama_french_data
 from .engine import run_monte_carlo, optimize_portfolio, backtest_portfolio, stress_test_portfolio, calculate_correlation, analyze_risk_factors, calculate_attribution, black_litterman_optimization, calculate_historical_var_cvar, calculate_mctr, project_wealth, calculate_relative_performance
-from .models import PortfolioRequest, PortfolioResponse, BacktestRequest, BacktestResponse, CorrelationResponse, FactorAnalysisResponse, AttributionResponse, BLViewsRequest, BLOptimizationRequest, BLOptimizationResponse, UserCreate, UserLogin, TokenResponse, ProjectionRequest
+from .models import PortfolioRequest, PortfolioResponse, BacktestRequest, CorrelationResponse, FactorAnalysisResponse, AttributionResponse, BLViewsRequest, BLOptimizationRequest, BLOptimizationResponse, UserCreate, UserLogin, TokenResponse, ProjectionRequest
 from .ai_analyst import get_ai_analysis, get_mock_analysis, AIAnalysisRequest, generate_bl_views
 from .storage import save_portfolio, list_portfolios, delete_portfolio, PortfolioModel, register_user, verify_user
 from typing import List, Dict
