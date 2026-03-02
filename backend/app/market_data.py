@@ -210,11 +210,13 @@ def get_asset_metadata(ticker: str) -> dict:
                 
         metadata["country"] = country
         metadata["sector"] = sector
-        ASSET_METADATA_CACHE[ticker] = metadata
+        # Only cache if we actually got real data
+        if country != "Unknown" or sector != "Unknown":
+            ASSET_METADATA_CACHE[ticker] = metadata
         return metadata
     except Exception as e:
         print(f"Error fetching metadata for {ticker}: {e}")
-        ASSET_METADATA_CACHE[ticker] = metadata
+        # Do not cache "Unknown" on failure so it can retry on the next analysis
         return metadata
 def get_bond_metadata(ticker: str) -> dict:
     return BOND_ETFS.get(ticker.upper(), {})
