@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { scaleLinear } from "d3-scale";
 import { Globe, PieChart as PieChartIcon, Target, TrendingUp, Activity } from 'lucide-react';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6'];
@@ -35,6 +37,14 @@ const ExposureAnalytics = ({ tickers, weights, metrics, assetsData }) => {
 
     // Fallbacks if data empty
     const hasData = geoData.length > 0;
+
+    // Setup Color Scale for Map
+    const maxValue = hasData ? Math.max(...geoData.map(d => d.value)) : 100;
+    const colorScale = scaleLinear()
+        .domain([0.1, maxValue])
+        .range(["#1e3a8a", "#3b82f6"]); // Dark blue to bright blue
+
+    const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
 
     const MetricCard = ({ title, value, subtitle, icon: Icon, colorClass }) => (
         <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
@@ -105,31 +115,36 @@ const ExposureAnalytics = ({ tickers, weights, metrics, assetsData }) => {
                         <h3 className="text-lg font-medium text-white">Geographic Exposure</h3>
                     </div>
                     {hasData ? (
-                        <div className="h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={geoData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                        stroke="none"
-                                    >
-                                        {geoData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip
-                                        formatter={(value) => `${value.toFixed(1)}%`}
-                                        contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                                        itemStyle={{ color: '#f3f4f6' }}
-                                    />
-                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                                </PieChart>
-                            </ResponsiveContainer>
+                        <div className="h-[300px] w-full mt-4 flex items-center justify-center">
+                            <ComposableMap
+                                projectionConfig={{ scale: 140 }}
+                                width={800}
+                                height={400}
+                                style={{ width: "100%", height: "100%" }}
+                            >
+                                <Geographies geography={geoUrl}>
+                                    {({ geographies }) =>
+                                        geographies.map((geo) => {
+                                            // Find if this country is in our portfolio geoData
+                                            const d = geoData.find((s) => s.name === geo.properties.name);
+                                            return (
+                                                <Geography
+                                                    key={geo.rsmKey}
+                                                    geography={geo}
+                                                    fill={d ? colorScale(d.value) : "#1f2937"}
+                                                    stroke="#374151"
+                                                    strokeWidth={0.5}
+                                                    style={{
+                                                        default: { outline: "none" },
+                                                        hover: { fill: d ? "#60a5fa" : "#374151", outline: "none", cursor: d ? "pointer" : "default" },
+                                                        pressed: { outline: "none" },
+                                                    }}
+                                                />
+                                            );
+                                        })
+                                    }
+                                </Geographies>
+                            </ComposableMap>
                         </div>
                     ) : (
                         <div className="h-[300px] flex items-center justify-center text-gray-500">No data available</div>

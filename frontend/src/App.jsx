@@ -17,6 +17,7 @@ import ChatInterface from './components/ChatInterface'
 import AdvancedRiskMetrics from './components/AdvancedRiskMetrics'
 import WealthProjection from './components/WealthProjection'
 import ExposureAnalytics from './components/ExposureAnalytics'
+import RelativePerformanceChart from './components/RelativePerformanceChart'
 import { useAuth } from './context/AuthContext'
 import Login from './components/Login'
 
@@ -419,12 +420,17 @@ export default function App() {
                     )}
 
                     {activeTab === 'exposure' && (
-                      <div id="exposure-benchmarking" className="animate-in fade-in duration-500 mt-6">
+                      <div id="exposure-benchmarking" className="animate-in fade-in duration-500 mt-6 space-y-6">
                         <ExposureAnalytics
                           tickers={tickers}
                           weights={manualWeights}
                           metrics={manualMetrics?.benchmark_metrics}
                           assetsData={data?.individual_assets}
+                        />
+
+                        <RelativePerformanceChart
+                          tickers={tickers}
+                          weights={manualWeights}
                         />
                       </div>
                     )}
