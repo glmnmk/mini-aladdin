@@ -6,6 +6,13 @@ import urllib.request
 import zipfile
 import io
 import ssl
+import requests
+
+# Create a custom session to prevent Yahoo Finance from rate-limiting Render's IP
+yf_session = requests.Session()
+yf_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
 
 
 def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFrame:
@@ -17,7 +24,7 @@ def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFram
         return pd.DataFrame()
     
     # Download data
-    data = yf.download(tickers, period=period, auto_adjust=True, progress=False)
+    data = yf.download(tickers, period=period, auto_adjust=True, progress=False, session=yf_session)
     
     # Handle case where only one ticker is returned (Series vs DataFrame)
     if "Close" in data.columns:
@@ -140,7 +147,7 @@ def get_asset_class(ticker: str) -> str:
         
     # 3. Dynamically query Yahoo Finance
     try:
-        info = yf.Ticker(ticker).info
+        info = yf.Ticker(ticker, session=yf_session).info
         quote_type = info.get("quoteType", "")
         asset_class = "Equity" # Fallback
         
@@ -182,7 +189,7 @@ def get_asset_metadata(ticker: str) -> dict:
     metadata = {"country": "Unknown", "sector": "Unknown"}
     
     try:
-        info = yf.Ticker(ticker).info
+        info = yf.Ticker(ticker, session=yf_session).info
         
         # Determine Country/Region
         country = info.get("country", "")
@@ -226,7 +233,7 @@ def fetch_current_prices(tickers: list[str]) -> dict:
     if not tickers:
          return {}
     try:
-         data = yf.Ticker(" ".join(tickers)).history(period="5d")
+         data = yf.Ticker(" ".join(tickers), session=yf_session).history(period="5d")
          if data.empty:
               return {}
          # Handle multi-ticker vs single-ticker from yfinance API
@@ -249,7 +256,7 @@ def fetch_risk_free_rate() -> float:
     Fetches the 10-Year Treasury Yield (^TNX) proxy for risk-free rate.
     """
     try:
-        data = yf.download("^TNX", period="5d", progress=False)
+        data = yf.download("^TNX", period="5d", progress=False, session=yf_session)
         if not data.empty:
             if "Close" in data:
                 last_yield = float(data["Close"].iloc[-1])
