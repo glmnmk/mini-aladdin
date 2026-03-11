@@ -18,6 +18,12 @@ class BacktestRequest(BaseModel):
     weights: Dict[str, float]
     period: str = "5y"
 
+class BacktestResponse(BaseModel):
+    dates: List[str]
+    portfolio_cumulative_return: List[float]
+    benchmark_cumulative_return: List[float]
+    metrics: Dict[str, float]
+
 
 class ProjectionRequest(BaseModel):
     tickers: List[str]

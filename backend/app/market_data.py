@@ -6,17 +6,66 @@ import urllib.request
 import zipfile
 import io
 import ssl
+import os
+import wrds
 
-
+WRDS_DB = None
+def get_wrds_connection():
+    global WRDS_DB
+    if WRDS_DB is None:
+        try:
+            uname = os.environ.get("WRDS_USERNAME")
+            pwd = os.environ.get("WRDS_PASSWORD")
+            if uname and pwd:
+                WRDS_DB = wrds.Connection(wrds_username=uname, wrds_password=pwd)
+        except Exception as e:
+            print(f"WRDS Connection error: {e}")
+    return WRDS_DB
 def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     """
-    Fetches historical adjusted close prices for the given tickers.
+    Fetches historical adjusted close prices for the given tickers using WRDS (LSEG/Compustat).
+    Falls back to yfinance if WRDS fails.
     Returns a DataFrame of daily log returns.
     """
     if not tickers:
         return pd.DataFrame()
-    
-    # Download data
+        
+    db = get_wrds_connection()
+    if db is not None:
+        try:
+            days_map = {"1y": 365, "2y": 730, "5y": 1825, "10y": 3650}
+            days = days_map.get(period, 1825)
+            start_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            if len(tickers) == 1:
+                tickers_sql = f"('{tickers[0]}')"
+            else:
+                tickers_sql = tuple(tickers)
+                
+            sql = f"""
+            SELECT datadate as date, tic, prccd / ajexdi as adj_close
+            FROM comp_na_daily_all.secd
+            WHERE tic IN {tickers_sql}
+            AND datadate >= '{start_date}'
+            """
+            df = db.raw_sql(sql)
+            if df is not None and not df.empty:
+                df['date'] = pd.to_datetime(df['date'])
+                prices = df.pivot(index='date', columns='tic', values='adj_close')
+                prices = prices.dropna()
+                log_returns = np.log(prices / prices.shift(1)).dropna()
+                
+                # Check for completely missing tickers
+                missing = [t for t in tickers if t not in log_returns.columns]
+                if not missing:
+                    log_returns = log_returns.reindex(columns=tickers)
+                    return log_returns
+                else:
+                    print(f"WRDS missing tickers: {missing}, falling back to yfinance")
+        except Exception as e:
+            print(f"WRDS fetch_historical_data error: {e}")
+
+    # Fallback: Download data via yfinance
     data = yf.download(tickers, period=period, auto_adjust=True, progress=False)
     
     # Handle case where only one ticker is returned (Series vs DataFrame)
@@ -181,6 +230,54 @@ def get_asset_metadata(ticker: str) -> dict:
     
     metadata = {"country": "Unknown", "sector": "Unknown"}
     
+    db = get_wrds_connection()
+    if db is not None:
+        try:
+            meta_sql = f"""
+            SELECT DISTINCT b.loc as country, b.gsector as sector
+            FROM comp_na_daily_all.names a
+            JOIN comp.company b ON a.gvkey = b.gvkey
+            WHERE a.tic = '{ticker}'
+            """
+            df = db.raw_sql(meta_sql)
+            if df is not None and not df.empty:
+                raw_country = df['country'].iloc[0]
+                raw_sector = str(df['sector'].iloc[0])
+                
+                # Map ISO Country code
+                if pd.notna(raw_country) and raw_country == 'USA':
+                    metadata["country"] = "United States"
+                elif pd.notna(raw_country):
+                    metadata["country"] = str(raw_country)
+                
+                # Map GICS Sector Codes to Strings
+                # 10: Energy, 15: Materials, 20: Industrials, 25: Consumer Discretionary, 
+                # 30: Consumer Staples, 35: Health Care, 40: Financials, 45: Information Technology, 
+                # 50: Communication Services, 55: Utilities, 60: Real Estate
+                gics_map = {
+                    '10': 'Energy', '15': 'Materials', '20': 'Industrials', 
+                    '25': 'Consumer Discretionary', '30': 'Consumer Staples', 
+                    '35': 'Health Care', '40': 'Financials', '45': 'Technology', 
+                    '50': 'Communication Services', '55': 'Utilities', '60': 'Real Estate',
+                    '10.0': 'Energy', '15.0': 'Materials', '20.0': 'Industrials', 
+                    '25.0': 'Consumer Discretionary', '30.0': 'Consumer Staples', 
+                    '35.0': 'Health Care', '40.0': 'Financials', '45.0': 'Technology', 
+                    '50.0': 'Communication Services', '55.0': 'Utilities', '60.0': 'Real Estate'
+                }
+                
+                if pd.notna(raw_sector) and raw_sector in gics_map:
+                    metadata["sector"] = gics_map[raw_sector]
+                elif pd.notna(raw_sector):
+                    # Fallback to sector code if not found
+                    metadata["sector"] = f"Sector {raw_sector}"
+                
+                if metadata["country"] != "Unknown" or metadata["sector"] != "Unknown":
+                    ASSET_METADATA_CACHE[ticker] = metadata
+                    return metadata
+        except Exception as e:
+            print(f"WRDS get_asset_metadata error: {e}")
+
+    # Fallback to yfinance
     try:
         info = yf.Ticker(ticker).info
         
