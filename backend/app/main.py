@@ -110,22 +110,28 @@ async def debug_env():
     env_file = find_dotenv()
     
     wrds_error = "Did not attempt"
+    raw_pg_error = "Did not attempt"
     try:
-        import wrds
         if uname and pwd:
-            db = wrds.Connection(wrds_username=uname, wrds_password=pwd)
-            wrds_error = "Success! Connection Active."
+            import sqlalchemy as sa
+            import urllib.parse
+            password = urllib.parse.quote(pwd)
+            pguri = f"postgresql://{uname}:{password}@wrds-pgdata.wharton.upenn.edu:9737/wrds"
+            engine = sa.create_engine(pguri, isolation_level="AUTOCOMMIT", connect_args={"sslmode": "require"})
+            conn = engine.connect()
+            raw_pg_error = "Success! Raw PostgreSQL Connection Active."
+            conn.close()
         else:
-            wrds_error = "Missing credentials to attempt."
+            raw_pg_error = "Missing credentials to attempt."
     except Exception as e:
-        wrds_error = f"ERROR: {str(e)}"
+        raw_pg_error = f"RAW ERROR: {str(e)}"
         
     return {
         "wrds_username_length": len(uname) if uname else 0,
         "wrds_password_set": "WRDS_PASSWORD" in os.environ,
         "env_file_found": bool(env_file),
         "env_file_path": env_file,
-        "wrds_connection_test": wrds_error,
+        "wrds_connection_test": raw_pg_error,
         "current_dir_contents": os.listdir("."),
         "dotenv_contents_keys": list(dotenv_values(env_file).keys()) if env_file else []
     }
