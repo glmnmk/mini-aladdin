@@ -281,13 +281,31 @@ def get_asset_metadata(ticker: str) -> dict:
                 raw_country = df['country'].iloc[0]
                 raw_sector = str(df['sector'].iloc[0])
                 
-                # Map ISO Country code
+                # Full ISO-3166-1 alpha-3 to TopoJSON country name map
+                ISO3_MAP = {
+                    'USA': 'United States of America', 'GBR': 'United Kingdom',
+                    'JPN': 'Japan', 'CHN': 'China', 'DEU': 'Germany',
+                    'FRA': 'France', 'CAN': 'Canada', 'AUS': 'Australia',
+                    'CHE': 'Switzerland', 'NLD': 'Netherlands', 'SWE': 'Sweden',
+                    'KOR': 'South Korea', 'IND': 'India', 'HKG': 'Hong Kong',
+                    'DNK': 'Denmark', 'NOR': 'Norway', 'FIN': 'Finland',
+                    'SGP': 'Singapore', 'IRL': 'Ireland', 'ISR': 'Israel',
+                    'BRA': 'Brazil', 'ITA': 'Italy', 'ESP': 'Spain',
+                    'BEL': 'Belgium', 'AUT': 'Austria', 'NZL': 'New Zealand',
+                    'ZAF': 'South Africa', 'MEX': 'Mexico', 'TWN': 'Taiwan',
+                    'RUS': 'Russia', 'SAU': 'Saudi Arabia', 'ARE': 'United Arab Emirates',
+                    'PRT': 'Portugal', 'GRC': 'Greece', 'POL': 'Poland',
+                    'TUR': 'Turkey', 'ARG': 'Argentina', 'CHL': 'Chile',
+                    'COL': 'Colombia', 'PHL': 'Philippines', 'IDN': 'Indonesia',
+                    'MYS': 'Malaysia', 'THA': 'Thailand', 'VNM': 'Vietnam',
+                    'PAK': 'Pakistan', 'EGY': 'Egypt', 'NGA': 'Nigeria',
+                    # Also handle text that WRDS sometimes returns
+                    'United States': 'United States of America',
+                    'Japan': 'Japan', 'United Kingdom': 'United Kingdom',
+                }
                 if pd.notna(raw_country):
-                    rc = str(raw_country)
-                    if rc == 'USA' or rc == 'United States':
-                        metadata["country"] = "United States of America"
-                    else:
-                        metadata["country"] = rc
+                    rc = str(raw_country).strip()
+                    metadata["country"] = ISO3_MAP.get(rc, rc)
                 
                 # Map GICS Sector Codes to Strings
                 # 10: Energy, 15: Materials, 20: Industrials, 25: Consumer Discretionary, 
