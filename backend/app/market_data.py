@@ -78,16 +78,40 @@ def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFram
                 # Remap the columns back to the user's requested tickers
                 prices = prices.rename(columns=reverse_aliases)
                 
-                prices = prices.dropna()
-                log_returns = np.log(prices / prices.shift(1)).dropna()
+                # Use forward-fill to handle missing trading days so we don't
+                # expel tickers that have different exchange calendars
+                prices = prices.ffill().dropna(how='all')
+                log_returns = np.log(prices / prices.shift(1)).dropna(how='all')
                 
-                # Check for completely missing tickers
+                # Check for completely missing tickers (returned 0 rows)
+                wrds_tickers = [t for t in tickers if t in log_returns.columns]
                 missing = [t for t in tickers if t not in log_returns.columns]
+                
                 if not missing:
+                    # All tickers found - common dropna to keep only full rows
+                    log_returns = log_returns.dropna()
                     log_returns = log_returns.reindex(columns=tickers)
                     return log_returns
+                elif wrds_tickers:
+                    # Some tickers found - fetch missing ones from yfinance separately
+                    print(f"WRDS missing tickers: {missing}, supplementing from yfinance")
+                    log_returns_wrds = log_returns[wrds_tickers].dropna()
+                    yf_data = yf.download(missing, period=period, auto_adjust=True, progress=False)
+                    if "Close" in yf_data.columns:
+                        yf_prices = yf_data["Close"]
+                    else:
+                        yf_prices = yf_data
+                    yf_prices = yf_prices.dropna()
+                    yf_log_returns = np.log(yf_prices / yf_prices.shift(1)).dropna()
+                    if isinstance(yf_log_returns, pd.Series):
+                        yf_log_returns = yf_log_returns.to_frame(missing[0])
+                    # Align the two dataframes on common dates
+                    common = log_returns_wrds.index.intersection(yf_log_returns.index)
+                    combined = pd.concat([log_returns_wrds.loc[common], yf_log_returns.loc[common]], axis=1)
+                    combined = combined.reindex(columns=tickers)
+                    return combined
                 else:
-                    print(f"WRDS missing tickers: {missing}, falling back to yfinance")
+                    print(f"WRDS returned no tickers, falling back to yfinance")
         except Exception as e:
             print(f"WRDS fetch_historical_data error: {e}")
 
