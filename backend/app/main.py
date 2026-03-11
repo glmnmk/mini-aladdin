@@ -105,13 +105,27 @@ def search_tickers(q: str):
 async def debug_env():
     import os
     uname = os.environ.get("WRDS_USERNAME")
+    pwd = os.environ.get("WRDS_PASSWORD")
     from dotenv import dotenv_values, find_dotenv
     env_file = find_dotenv()
+    
+    wrds_error = "Did not attempt"
+    try:
+        import wrds
+        if uname and pwd:
+            db = wrds.Connection(wrds_username=uname, wrds_password=pwd)
+            wrds_error = "Success! Connection Active."
+        else:
+            wrds_error = "Missing credentials to attempt."
+    except Exception as e:
+        wrds_error = f"ERROR: {str(e)}"
+        
     return {
         "wrds_username_length": len(uname) if uname else 0,
         "wrds_password_set": "WRDS_PASSWORD" in os.environ,
         "env_file_found": bool(env_file),
         "env_file_path": env_file,
+        "wrds_connection_test": wrds_error,
         "current_dir_contents": os.listdir("."),
         "dotenv_contents_keys": list(dotenv_values(env_file).keys()) if env_file else []
     }
