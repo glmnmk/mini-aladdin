@@ -7,10 +7,20 @@ import zipfile
 import io
 import ssl
 import os
-import wrds
+import sqlalchemy as sa
+import urllib.parse
 from dotenv import load_dotenv
 
 load_dotenv()
+
+class NativeWRDSConnection:
+    def __init__(self, username, password):
+        encoded_password = urllib.parse.quote(password)
+        pguri = f"postgresql://{username}:{encoded_password}@wrds-pgdata.wharton.upenn.edu:9737/wrds"
+        self.engine = sa.create_engine(pguri, isolation_level="AUTOCOMMIT", connect_args={"sslmode": "require"})
+        
+    def raw_sql(self, sql):
+        return pd.read_sql_query(sql, self.engine)
 
 WRDS_DB = None
 def get_wrds_connection():
@@ -20,19 +30,10 @@ def get_wrds_connection():
             uname = os.environ.get("WRDS_USERNAME")
             pwd = os.environ.get("WRDS_PASSWORD")
             if uname and pwd:
-                # In a headless server, WRDS tries to ask "Create .pgpass file? [y/n]"
-                # which throws an EOFError since there is no terminal.
-                # We temporarily mock the input function to automatically answer 'n'.
-                import builtins
-                original_input = getattr(builtins, 'input', None)
-                builtins.input = lambda prompt='': 'n'
-                try:
-                    WRDS_DB = wrds.Connection(wrds_username=uname, wrds_password=pwd)
-                finally:
-                    if original_input:
-                        builtins.input = original_input
+                WRDS_DB = NativeWRDSConnection(uname, pwd)
         except Exception as e:
             print(f"WRDS Connection error: {e}")
+            WRDS_DB = None
     return WRDS_DB
 def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     """
@@ -258,10 +259,12 @@ def get_asset_metadata(ticker: str) -> dict:
                 raw_sector = str(df['sector'].iloc[0])
                 
                 # Map ISO Country code
-                if pd.notna(raw_country) and raw_country == 'USA':
-                    metadata["country"] = "United States of America"
-                elif pd.notna(raw_country):
-                    metadata["country"] = str(raw_country)
+                if pd.notna(raw_country):
+                    rc = str(raw_country)
+                    if rc == 'USA' or rc == 'United States':
+                        metadata["country"] = "United States of America"
+                    else:
+                        metadata["country"] = rc
                 
                 # Map GICS Sector Codes to Strings
                 # 10: Energy, 15: Materials, 20: Industrials, 25: Consumer Discretionary, 

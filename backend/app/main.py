@@ -101,40 +101,7 @@ def search_tickers(q: str):
     except Exception as e:
         return {"results": []}
 
-@app.get("/api/debug/env")
-async def debug_env():
-    import os
-    uname = os.environ.get("WRDS_USERNAME")
-    pwd = os.environ.get("WRDS_PASSWORD")
-    from dotenv import dotenv_values, find_dotenv
-    env_file = find_dotenv()
-    
-    wrds_error = "Did not attempt"
-    raw_pg_error = "Did not attempt"
-    try:
-        if uname and pwd:
-            import sqlalchemy as sa
-            import urllib.parse
-            password = urllib.parse.quote(pwd)
-            pguri = f"postgresql://{uname}:{password}@wrds-pgdata.wharton.upenn.edu:9737/wrds"
-            engine = sa.create_engine(pguri, isolation_level="AUTOCOMMIT", connect_args={"sslmode": "require"})
-            conn = engine.connect()
-            raw_pg_error = "Success! Raw PostgreSQL Connection Active."
-            conn.close()
-        else:
-            raw_pg_error = "Missing credentials to attempt."
-    except Exception as e:
-        raw_pg_error = f"RAW ERROR: {str(e)}"
-        
-    return {
-        "wrds_username_length": len(uname) if uname else 0,
-        "wrds_password_set": "WRDS_PASSWORD" in os.environ,
-        "env_file_found": bool(env_file),
-        "env_file_path": env_file,
-        "wrds_connection_test": raw_pg_error,
-        "current_dir_contents": os.listdir("."),
-        "dotenv_contents_keys": list(dotenv_values(env_file).keys()) if env_file else []
-    }
+
 
 # ... existing code ...
 
