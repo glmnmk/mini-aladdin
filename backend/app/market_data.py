@@ -105,10 +105,21 @@ def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFram
                     yf_log_returns = np.log(yf_prices / yf_prices.shift(1)).dropna()
                     if isinstance(yf_log_returns, pd.Series):
                         yf_log_returns = yf_log_returns.to_frame(missing[0])
+                    
+                    # If supplementary fetch failed, return what we have from WRDS
+                    if yf_log_returns.empty:
+                        print(f"YFinance returned no data for missing tickers: {missing}. Returning partial data.")
+                        return log_returns_wrds
+
                     # Align the two dataframes on common dates
                     common = log_returns_wrds.index.intersection(yf_log_returns.index)
+                    
+                    if common.empty:
+                        print("No overlapping data between WRDS and YFinance. Returning WRDS data only.")
+                        return log_returns_wrds
+                        
                     combined = pd.concat([log_returns_wrds.loc[common], yf_log_returns.loc[common]], axis=1)
-                    combined = combined.reindex(columns=tickers)
+                    # combined = combined.reindex(columns=tickers) # Don't force reindex to avoid NaNs
                     return combined
                 else:
                     print(f"WRDS returned no tickers, falling back to yfinance")
@@ -129,10 +140,10 @@ def fetch_historical_data(tickers: list[str], period: str = "5y") -> pd.DataFram
     # Calculate daily log returns
     log_returns = np.log(prices / prices.shift(1)).dropna()
     
-    # CRITICAL FIX: yfinance alphabetizes columns. We must force the DataFrame
-    # columns to exactly match the order of the requested `tickers` list.
-    if isinstance(log_returns, pd.DataFrame):
-        log_returns = log_returns.reindex(columns=tickers)
+    # Do NOT reindex to match 'tickers' exactly if it introduces NaN columns.
+    # We want to keep only valid data for analysis.
+    # if isinstance(log_returns, pd.DataFrame):
+    #    log_returns = log_returns.reindex(columns=tickers)
         
     return log_returns
 
