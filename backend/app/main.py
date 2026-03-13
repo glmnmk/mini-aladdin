@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
-from .market_data import fetch_historical_data, fetch_fama_french_data
+from .market_data import fetch_historical_data, fetch_fama_french_data, fetch_risk_free_rate
 from .engine import run_monte_carlo, optimize_portfolio, backtest_portfolio, stress_test_portfolio, calculate_correlation, analyze_risk_factors, calculate_attribution, black_litterman_optimization, calculate_historical_var_cvar, calculate_mctr, project_wealth, calculate_relative_performance
 from .models import PortfolioRequest, PortfolioResponse, BacktestRequest, BacktestResponse, CorrelationResponse, FactorAnalysisResponse, AttributionResponse, BLViewsRequest, BLOptimizationRequest, BLOptimizationResponse, UserCreate, UserLogin, TokenResponse, ProjectionRequest
 from .ai_analyst import get_ai_analysis, get_mock_analysis, AIAnalysisRequest, generate_bl_views
@@ -120,7 +120,12 @@ async def calculate_metrics(request: BacktestRequest):
 
     mean_returns = log_returns.mean()
     cov_matrix = log_returns.cov()
-    risk_free_rate = 0.04
+    
+    # Use live Risk-Free Rate (10Y Treasury Yield) instead of hardcoded 4%
+    try:
+        risk_free_rate = fetch_risk_free_rate()
+    except:
+        risk_free_rate = 0.04
     
     # Calculate metrics for the specific weights
     weights_array = np.array([request.weights.get(t, 0) for t in request.tickers])

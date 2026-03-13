@@ -186,13 +186,27 @@ def stress_test_portfolio(log_returns, weights, benchmark_log_returns, force_bet
     # 4. Apply Beta to Scenarios
     results = {}
     for scenario_name, market_drop in STRESS_SCENARIOS.items():
+        # Enhanced Stress Test Logic: Correlation Breakdown
+        # In severe market crashes (drop < -15%), correlations tend to 1.
+        # This means assets become MORE correlated with the market.
+        # We adjust Beta upwards to model this "tail risk".
+        
+        adjusted_beta = beta
+        if market_drop < -0.15:
+            # Shift Beta 20% closer to 1.0 (or just higher if >1) to simulate
+            # loss of diversification benefits.
+            if beta < 1.0:
+                adjusted_beta = beta + (1.0 - beta) * 0.2
+            else:
+                adjusted_beta = beta * 1.1 # High beta stocks fall harder
+                
         # Expected Portfolio Drop = Beta * Market Drop
         # We cap the drop at -100% just in case
-        projected_drop = beta * market_drop
+        projected_drop = adjusted_beta * market_drop
         results[scenario_name] = max(projected_drop, -1.0)
         
     return {
-        "beta": float(beta), # Return beta so frontend can show it
+        "beta": float(beta), # Return original beta (fundamental)
         "scenarios": results
     }
 
