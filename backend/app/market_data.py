@@ -317,6 +317,21 @@ COUNTRY_MAP = {
     'Japan': 'Japan'
 }
 
+# Normalize Yahoo Finance sectors to GICS standard
+SECTOR_MAP = {
+    "Basic Materials": "Materials",
+    "Consumer Cyclical": "Consumer Discretionary",
+    "Consumer Defensive": "Consumer Staples",
+    "Financial Services": "Financials",
+    "Healthcare": "Health Care",
+    "Technology": "Information Technology",
+    "Communication Services": "Communication Services",
+    "Energy": "Energy",
+    "Industrials": "Industrials",
+    "Real Estate": "Real Estate",
+    "Utilities": "Utilities"
+}
+
 def get_asset_metadata(ticker: str) -> dict:
     ticker = ticker.upper()
     
@@ -361,11 +376,11 @@ def get_asset_metadata(ticker: str) -> dict:
                 gics_map = {
                     '10': 'Energy', '15': 'Materials', '20': 'Industrials', 
                     '25': 'Consumer Discretionary', '30': 'Consumer Staples', 
-                    '35': 'Health Care', '40': 'Financials', '45': 'Technology', 
+                    '35': 'Health Care', '40': 'Financials', '45': 'Information Technology', 
                     '50': 'Communication Services', '55': 'Utilities', '60': 'Real Estate',
                     '10.0': 'Energy', '15.0': 'Materials', '20.0': 'Industrials', 
                     '25.0': 'Consumer Discretionary', '30.0': 'Consumer Staples', 
-                    '35.0': 'Health Care', '40.0': 'Financials', '45.0': 'Technology', 
+                    '35.0': 'Health Care', '40.0': 'Financials', '45.0': 'Information Technology', 
                     '50.0': 'Communication Services', '55.0': 'Utilities', '60.0': 'Real Estate'
                 }
                 
@@ -411,10 +426,12 @@ def get_asset_metadata(ticker: str) -> dict:
                 elif asset_class == "Commodity": sector = "Commodities"
                 elif asset_class == "Real Estate": sector = "Real Estate"
                 else: sector = "Other Equity"
+        
+        # Normalize Sector
+        metadata["sector"] = SECTOR_MAP.get(sector, sector)
                 
         # Apply standard mapping on yfinance output as well (again, in case it was set by category block)
-        metadata["country"] = COUNTRY_MAP.get(metadata["country"], metadata["country"])
-        metadata["sector"] = sector
+        metadata["country"] = COUNTRY_MAP.get(metadata["country"], metadata["country"]) 
         # Only cache if we actually got real data
         if metadata["country"] != "Unknown" or sector != "Unknown":
             ASSET_METADATA_CACHE[ticker] = metadata
