@@ -358,51 +358,62 @@ def get_asset_metadata(ticker: str) -> dict:
     
     metadata = {"country": "Unknown", "sector": "Unknown"}
     
+    # Try WRDS First (North America)
     db = get_wrds_connection()
     if db is not None:
         try:
-            meta_sql = f"""
-            SELECT DISTINCT b.loc as country, b.gsector as sector
-            FROM comp_na_daily_all.names a
-            JOIN comp.company b ON a.gvkey = b.gvkey
-            WHERE a.tic = '{lookup_ticker}'
-            """
-            df = db.raw_sql(meta_sql)
-            if df is not None and not df.empty:
-                raw_country = df['country'].iloc[0]
-                raw_sector = str(df['sector'].iloc[0])
-                
-                if pd.notna(raw_country):
-                    rc = str(raw_country).strip()
-                    # Apply global map
-                    metadata["country"] = COUNTRY_MAP.get(rc, rc)
-                
-                # Map GICS Sector Codes to Strings
-                # 10: Energy, 15: Materials, 20: Industrials, 25: Consumer Discretionary, 
-                # 30: Consumer Staples, 35: Health Care, 40: Financials, 45: Information Technology, 
-                # 50: Communication Services, 55: Utilities, 60: Real Estate
-                gics_map = {
-                    '10': 'Energy', '15': 'Materials', '20': 'Industrials', 
-                    '25': 'Consumer Discretionary', '30': 'Consumer Staples', 
-                    '35': 'Health Care', '40': 'Financials', '45': 'Information Technology', 
-                    '50': 'Communication Services', '55': 'Utilities', '60': 'Real Estate',
-                    '10.0': 'Energy', '15.0': 'Materials', '20.0': 'Industrials', 
-                    '25.0': 'Consumer Discretionary', '30.0': 'Consumer Staples', 
-                    '35.0': 'Health Care', '40.0': 'Financials', '45.0': 'Information Technology', 
-                    '50.0': 'Communication Services', '55.0': 'Utilities', '60.0': 'Real Estate'
-                }
-                
-                if pd.notna(raw_sector) and raw_sector in gics_map:
-                    metadata["sector"] = gics_map[raw_sector]
-                elif pd.notna(raw_sector):
-                    # Fallback to sector code if not found
-                    metadata["sector"] = f"Sector {raw_sector}"
-                
-                if metadata["country"] != "Unknown" or metadata["sector"] != "Unknown":
-                    ASSET_METADATA_CACHE[ticker] = metadata
-                    return metadata
+            # Check for international suffix that implies non-US/NA coverage
+            is_likely_international = "." in ticker
+            
+            if not is_likely_international:
+                meta_sql = f"""
+                SELECT DISTINCT b.loc as country, b.gsector as sector
+                FROM comp_na_daily_all.names a
+                JOIN comp.company b ON a.gvkey = b.gvkey
+                WHERE a.tic = '{lookup_ticker}'
+                """
+                df = db.raw_sql(meta_sql)
+                if df is not None and not df.empty:
+                    raw_country = df['country'].iloc[0]
+                    raw_sector = str(df['sector'].iloc[0])
+                    
+                    if pd.notna(raw_country):
+                        rc = str(raw_country).strip()
+                        # Apply global map
+                        metadata["country"] = COUNTRY_MAP.get(rc, rc)
+                    
+                    # Map GICS Sector Codes to Strings
+                    # 10: Energy, 15: Materials, 20: Industrials, 25: Consumer Discretionary, 
+                    # 30: Consumer Staples, 35: Health Care, 40: Financials, 45: Information Technology, 
+                    # 50: Communication Services, 55: Utilities, 60: Real Estate
+                    gics_map = {
+                        '10': 'Energy', '15': 'Materials', '20': 'Industrials', 
+                        '25': 'Consumer Discretionary', '30': 'Consumer Staples', 
+                        '35': 'Health Care', '40': 'Financials', '45': 'Information Technology', 
+                        '50': 'Communication Services', '55': 'Utilities', '60': 'Real Estate',
+                        '10.0': 'Energy', '15.0': 'Materials', '20.0': 'Industrials', 
+                        '25.0': 'Consumer Discretionary', '30.0': 'Consumer Staples', 
+                        '35.0': 'Health Care', '40.0': 'Financials', '45.0': 'Information Technology', 
+                        '50.0': 'Communication Services', '55.0': 'Utilities', '60.0': 'Real Estate'
+                    }
+                    
+                    if pd.notna(raw_sector) and raw_sector in gics_map:
+                        metadata["sector"] = gics_map[raw_sector]
+                    elif pd.notna(raw_sector):
+                        # Fallback to sector code if not found
+                        metadata["sector"] = f"Sector {raw_sector}"
+                    
+                    if metadata["country"] != "Unknown" or metadata["sector"] != "Unknown":
+                        ASSET_METADATA_CACHE[ticker] = metadata
+                        return metadata
+            else:
+                 # Known international ticker + WRDS NA focus = Skip WRDS to save time/errors
+                 pass
+                 
         except Exception as e:
-            print(f"WRDS get_asset_metadata error: {e}")
+            # If WRDS fails (e.g. table not found, permission denied), just continue to fallback
+            # print(f"WRDS get_asset_metadata error: {e}")
+            pass
 
     # Fallback to yfinance
     try:
